@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { getCategoriesByAdmin } from "@/api/categories";
 import { getProducts, getProductsByCategory } from "@/api/products";
 import { useRouter } from 'vue-router'
+import ProductCard from './ProductCard.vue'
 
 const router = useRouter()
 const categories = ref([])
@@ -43,6 +44,10 @@ function handleAllProducts() {
     products.value = res
     loading.value = false
   })
+}
+
+function goToProduct(prod) {
+  router.push({ name: 'ProductDetails', params: { id: prod.id } })
 }
 
 const filteredProducts = computed(() => {
@@ -116,20 +121,11 @@ const filteredProducts = computed(() => {
           <div v-else>
             <div v-if="filteredProducts.length === 0" class="text-center">Nenhum produto encontrado.</div>
             <div v-else class="produtos-grid">
-              <div v-for="prod in filteredProducts" :key="prod.id" class="produto-card">
-                <img
-                  v-if="prod.image_path"
-                  :src="`http://35.196.79.227:8000${prod.image_path}`"
-                  :alt="prod.name"
-                  class="produto-img"
-                />
-                <div class="produto-info">
-                  <h3>{{ prod.name }}</h3>
-                  <p>{{ prod.description }}</p>
-                  <span class="preco">R$ {{ prod.price }}</span>
-                </div>
-                <button class="btn-add" @click="$emit('add-to-cart', prod)">Adicionar ao Carrinho</button>
-              </div>
+              <ProductCard
+                v-for="prod in filteredProducts"
+                :key="prod.id"
+                :product="prod"
+              />
             </div>
           </div>
         </main>
@@ -316,51 +312,72 @@ const filteredProducts = computed(() => {
 }
 .produtos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
   width: 100%;
+  justify-items: center;
+}
+@media (max-width: 900px) {
+  .produtos-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+}
+@media (max-width: 600px) {
+  .produtos-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 .produto-card {
   background: #fff;
-  border-radius: 12px;
-  padding: 14px 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  border-radius: 14px;
+  padding: 18px 12px;
+  box-shadow: 0 1px 8px rgba(255,77,51,0.07);
   display: flex;
   flex-direction: column;
   align-items: center;
-  border: 1px solid #eee;
-  min-width: 160px;
-  max-width: 220px;
+  border: 1.5px solid #eee;
+  min-width: 220px;
+  max-width: 260px;
+  cursor: pointer;
+  transition: box-shadow 0.18s, border 0.18s, transform 0.12s;
+}
+.produto-card:hover {
+  box-shadow: 0 4px 18px #ffb34733;
+  border: 1.5px solid #FF4D33;
+  transform: translateY(-2px) scale(1.03);
 }
 .produto-img {
-  width: 90px;
-  height: 90px;
+  width: 110px;
+  height: 110px;
   object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 10px;
+  margin-bottom: 10px;
 }
 .produto-info {
   text-align: center;
+  width: 100%;
+}
+.produto-info h3 {
+  font-size: 1.1em;
+  color: #FF4D33;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+.produto-desc {
+  font-size: 0.98em;
+  color: #444;
+  margin-bottom: 6px;
+  min-height: 36px;
+  max-height: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .preco {
   color: #FF4D33;
   font-weight: bold;
-  font-size: 1.1em;
-}
-.btn-add {
-  margin-top: 10px;
-  background: #FF4D33;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 7px 18px;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-add:hover {
-  background: #ffb347;
-  color: #fff;
+  font-size: 1.15em;
 }
 @media (max-width: 900px) {
   .products-main {
@@ -391,6 +408,19 @@ const filteredProducts = computed(() => {
     min-width: 80px;
     font-size: 0.95em;
     text-align: center;
+  }
+  .produtos-grid {
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+  .produto-card {
+    min-width: 160px;
+    max-width: 98vw;
+    padding: 10px 2vw;
+  }
+  .produto-img {
+    width: 70px;
+    height: 70px;
   }
 }
 @media (max-width: 600px) {

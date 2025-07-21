@@ -7,10 +7,12 @@ import ViewProfile from '@/Views/ViewProfile.vue'
 import AdminAddCategory from '@/Views/AdminAddCategory.vue'
 import AdminCategories from '@/Views/AdminCategories.vue'
 import ViewProducts from '@/Views/ViewProducts.vue'
+import ProductDetail from '@/Views/ProductDetail.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
   { path: '/category/:id', name: 'CategoryProducts', component: ViewProducts },
+  { path: '/product/:id', name: 'ProductDetail', component: ProductDetail },
   { path: '/login', name: 'Login', component: ViewLogin },
   { path: '/register', name: 'Register', component: ViewRegister },
   { path: '/admin', name: 'AdminDashboard', component: AdminDashboard },
