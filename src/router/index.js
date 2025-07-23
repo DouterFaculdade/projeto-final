@@ -8,6 +8,8 @@ import AdminAddCategory from '@/Views/AdminAddCategory.vue'
 import AdminCategories from '@/Views/AdminCategories.vue'
 import ViewProducts from '@/Views/ViewProducts.vue'
 import ProductDetail from '@/Views/ProductDetail.vue'
+import Cart from '@/Views/Cart.vue'
+import Checkout from '@/Views/Checkout.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -19,6 +21,8 @@ const routes = [
   { path: '/profile', name: 'Profile', component: ViewProfile },
   { path: '/admin/add-category', name: 'AdminAddCategory', component: AdminAddCategory },
   { path: '/admin/my-categories', name: 'AdminCategories', component: AdminCategories },
+  { path: '/cart', name: 'Cart', component: Cart },
+  { path: '/checkout', name: 'Checkout', component: Checkout },
 ]
 
 const router = createRouter({

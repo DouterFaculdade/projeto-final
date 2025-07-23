@@ -19,6 +19,10 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { getProductById } from '@/api/products';
+import { addItemToCart } from '@/api/cart';
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
+
 const route = useRoute();
 const product = ref(null);
 
@@ -29,9 +33,22 @@ onMounted(async () => {
   }
 });
 
-function addToCart() {
-  // lógica de adicionar ao carrinho
-  alert('Produto adicionado ao carrinho!');
+async function addToCart() {
+  if (!product.value) return;
+  try {
+    const res = await addItemToCart({
+      product_id: product.value.id,
+      quantity: 1,
+      unit_price: product.value.price
+    });
+    if (res.status === 204) {
+      toast.success('Produto adicionado ao carrinho!');
+    } else {
+      toast.error('Erro ao adicionar ao carrinho!');
+    }
+  } catch {
+    toast.error('Erro ao conectar com o servidor!');
+  }
 }
 </script>
 

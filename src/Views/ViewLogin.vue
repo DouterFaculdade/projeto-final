@@ -4,7 +4,7 @@ import logo from "@/assets/logo.svg";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import { useRouter } from 'vue-router';
-import { login } from "@/api/auth";
+import { login, createCartIfNotExists } from "@/api/auth";
 
 const email = ref("fe.gereiteste@hotmail.com");
 const password = ref("teste");
@@ -19,6 +19,15 @@ async function handleLogin(e) {
     if (response.status === 200) {
       toast.success("Login realizado com sucesso!", { autoClose: 2000 });
       window.dispatchEvent(new Event('user-auth-changed'));
+      // Cria carrinho se não existir
+      const cartResult = await createCartIfNotExists(localStorage.getItem('access_token'));
+      if (cartResult.status === 'created') {
+        toast.success(`Carrinho criado! (ID: ${cartResult.cart_id})`, { autoClose: 2000 });
+      } else if (cartResult.status === 'exists') {
+        toast.info(`Carrinho já existe (ID: ${cartResult.cart_id})`, { autoClose: 2000 });
+      } else {
+        toast.error("Erro ao criar carrinho!", { autoClose: 2000 });
+      }
       setTimeout(() => {
         router.push('/');
       }, 1000);

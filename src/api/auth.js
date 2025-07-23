@@ -43,5 +43,29 @@ export function logout() {
   localStorage.removeItem('user_image');
 }
 
+// Cria o carrinho do usuário se não existir
+export async function createCartIfNotExists(token) {
+  // Se já existe carrinho, ignora
+  if (localStorage.getItem('cart_id')) return { status: 'exists', cart_id: localStorage.getItem('cart_id') };
+  try {
+    const response = await apiFetch("/cart/", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: "",
+    });
+    if (response.status === 200) {
+      const data = await response.json();
+      localStorage.setItem('cart_id', data.id);
+      return { status: 'created', cart_id: data.id };
+    }
+    return { status: 'error' };
+  } catch {
+    return { status: 'error' };
+  }
+}
+
 // Exemplo para register futuramente
 // export async function register(data) { ... }

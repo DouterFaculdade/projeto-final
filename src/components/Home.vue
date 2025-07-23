@@ -1,9 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { getCategoriesByAdmin } from "@/api/categories";
-import { getProducts, getProductsByCategory } from "@/api/products";
+import { getProductsByAdminUser231, getProductsByCategory } from "@/api/products";
+import { addItemToCart, getCartItems, updateCartItemQuantity } from "@/api/cart";
 import { useRouter } from 'vue-router'
 import ProductCard from './ProductCard.vue'
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
 
 const router = useRouter()
 const categories = ref([])
@@ -17,7 +20,7 @@ onMounted(async () => {
   loading.value = true
   try {
     categories.value = await getCategoriesByAdmin(231)
-    products.value = await getProducts()
+    products.value = await getProductsByAdminUser231()
   } catch (err) {
     error.value = 'Erro ao carregar dados'
   } finally {
@@ -29,7 +32,9 @@ async function handleCategoryClick(cat) {
   selectedCategory.value = cat
   loading.value = true
   try {
-    products.value = await getProductsByCategory(cat.id)
+    // Filtra produtos da categoria apenas entre os criados pelo admin 231
+    const allAdminProducts = await getProductsByAdminUser231()
+    products.value = allAdminProducts.filter(prod => prod.category_id === cat.id)
   } catch (err) {
     error.value = 'Erro ao carregar produtos'
   } finally {
@@ -40,7 +45,7 @@ async function handleCategoryClick(cat) {
 function handleAllProducts() {
   selectedCategory.value = null
   loading.value = true
-  getProducts().then(res => {
+  getProductsByAdminUser231().then(res => {
     products.value = res
     loading.value = false
   })
@@ -48,6 +53,44 @@ function handleAllProducts() {
 
 function goToProduct(prod) {
   router.push({ name: 'ProductDetails', params: { id: prod.id } })
+}
+
+async function handleAddToCart(prod) {
+  try {
+    // Verifica se o produto já está no carrinho
+    const cart = await getCartItems();
+    const existing = cart.items?.find(item => item.product_id === prod.id);
+    if (existing) {
+      // Atualiza quantidade
+      const newQty = existing.quantity + 1;
+      await updateCartItemQuantity(prod.id, newQty);
+      toast.success({
+        render: ({ closeToast }) => (
+          `Quantidade atualizada no carrinho!`
+        ),
+        autoClose: 3000,
+      });
+    } else {
+      // Adiciona novo item
+      const res = await addItemToCart({
+        product_id: prod.id,
+        quantity: 1,
+        unit_price: prod.price
+      });
+      if (res.status === 204) {
+        toast.success({
+          render: ({ closeToast }) => (
+            `Produto adicionado ao carrinho!`
+          ),
+          autoClose: 3000,
+        });
+      } else {
+        toast.error('Erro ao adicionar ao carrinho!');
+      }
+    }
+  } catch (err) {
+    toast.error(err.message || 'Erro ao conectar com o servidor!');
+  }
 }
 
 const filteredProducts = computed(() => {
@@ -121,11 +164,25 @@ const filteredProducts = computed(() => {
           <div v-else>
             <div v-if="filteredProducts.length === 0" class="text-center">Nenhum produto encontrado.</div>
             <div v-else class="produtos-grid">
-              <ProductCard
+              <div
                 v-for="prod in filteredProducts"
                 :key="prod.id"
-                :product="prod"
-              />
+                class="produto-card"
+              >
+                <img
+                  v-if="prod.image_path"
+                  :src="`http://35.196.79.227:8000${prod.image_path}`"
+                  alt="Imagem do produto"
+                  class="produto-img"
+                />
+                <h3>{{ prod.name }}</h3>
+                <p>{{ prod.description }}</p>
+                <div class="produto-info">
+                  <span>Preço: <strong>R$ {{ prod.price }}</strong></span><br />
+                  <span>Estoque: {{ prod.stock }}</span>
+                </div>
+                <button class="btn-primary" @click="handleAddToCart(prod)">Adicionar ao Carrinho</button>
+              </div>
             </div>
           </div>
         </main>

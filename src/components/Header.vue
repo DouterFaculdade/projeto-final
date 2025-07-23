@@ -32,7 +32,8 @@ onMounted(() => {
       <router-link to="/" class="header-logo">Emporium</router-link>
       <nav class="header-nav">
         <router-link to="/" class="nav-link">Home</router-link>
-        <router-link to="/products" class="nav-link">Produtos</router-link>
+        <router-link to="/cart" class="nav-link">Cart</router-link>
+
         <router-link v-if="userRole === 'ADMIN'" to="/admin" class="nav-link">Admin</router-link>
         <router-link v-if="userRole" to="/profile" class="nav-link">Perfil</router-link>
         <router-link v-if="!userRole" to="/login" class="nav-link">Entrar</router-link>

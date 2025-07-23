@@ -14,8 +14,8 @@ export async function getProductsByCategory(categoryId) {
   }).then(r => r.json());
 }
 
-export async function getProductsByAdmin231() {
-  return apiFetch(`/products/admin/323`, {
+export async function getProductsByAdminUser231() {
+  return apiFetch("/products/user/231", {
     headers: { accept: "application/json" },
   }).then(r => r.json());
 }
