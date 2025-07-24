@@ -21,10 +21,11 @@ async function handleLogin(e) {
       window.dispatchEvent(new Event('user-auth-changed'));
       // Cria carrinho se não existir
       const cartResult = await createCartIfNotExists(localStorage.getItem('access_token'));
+      // Removido toast que mostra o id do carrinho
       if (cartResult.status === 'created') {
-        toast.success(`Carrinho criado! (ID: ${cartResult.cart_id})`, { autoClose: 2000 });
+        // toast.success("Carrinho criado!", { autoClose: 2000 });
       } else if (cartResult.status === 'exists') {
-        toast.info(`Carrinho já existe (ID: ${cartResult.cart_id})`, { autoClose: 2000 });
+        // toast.info("Carrinho já existe", { autoClose: 2000 });
       } else {
         toast.error("Erro ao criar carrinho!", { autoClose: 2000 });
       }

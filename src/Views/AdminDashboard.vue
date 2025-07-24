@@ -11,10 +11,17 @@ import ProductForm from '@/components/ProductForm.vue';
 const router = useRouter();
 const userRole = ref(localStorage.getItem('user_role') || '');
 const activeTab = ref('categories');
+const allOrders = ref([]);
+const loadingAllOrders = ref(false);
+const errorAllOrders = ref(null);
+const allOrdersAddressesMap = ref({});
+
+// Categorias
 const categories = ref([]);
 const loadingCategories = ref(false);
 const errorCategories = ref(null);
 
+// Produtos
 const selectedCategory = ref(null);
 const products = ref([]);
 const loadingProducts = ref(false);
@@ -32,12 +39,17 @@ const showProductForm = ref(false);
 const isEditProduct = ref(false);
 const editingProduct = ref(null);
 
+const showDeleteModal = ref(false);
+const productToDelete = ref(null);
+
 onMounted(() => {
   if (userRole.value !== 'ADMIN') {
     toast.error('Acesso restrito!');
     router.push('/');
   } else {
     fetchCategories();
+    fetchAllOrdersAddressesMap();
+    fetchAllOrders();
   }
 });
 
@@ -55,6 +67,48 @@ async function fetchCategories() {
     errorCategories.value = 'Erro ao buscar categorias';
   } finally {
     loadingCategories.value = false;
+  }
+}
+
+async function fetchAllOrders() {
+  loadingAllOrders.value = true;
+  try {
+    const res = await fetch('http://35.196.79.227:8000/orders/all/231', {
+      headers: {
+        'accept': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      allOrders.value = Array.isArray(data) ? data : [];
+      errorAllOrders.value = null;
+    } else {
+      errorAllOrders.value = 'Erro ao buscar pedidos!';
+      allOrders.value = [];
+    }
+  } catch {
+    errorAllOrders.value = 'Erro ao conectar com o servidor!';
+    allOrders.value = [];
+  } finally {
+    loadingAllOrders.value = false;
+  }
+}
+
+async function fetchAllOrdersAddressesMap() {
+  try {
+    const res = await fetch('http://35.196.79.227:8000/addresses', {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    if (res.ok) {
+      const arr = await res.json();
+      allOrdersAddressesMap.value = {};
+      arr.forEach(addr => {
+        allOrdersAddressesMap.value[addr.id] = addr;
+      });
+    }
+  } catch {
+    allOrdersAddressesMap.value = {};
   }
 }
 
@@ -86,12 +140,91 @@ function openAddProduct() {
 
 function handleEditProduct(prod) {
   isEditProduct.value = true;
-  editingProduct.value = { ...prod, category_id: prod.category_id || (prod.category && prod.category.id) };
+  // Preenche todos os campos do formulário com os dados atuais do produto
+  editingProduct.value = {
+    id: prod.id,
+    name: prod.name,
+    price: prod.price,
+    stock: prod.stock,
+    category_id: prod.category_id || (prod.category && prod.category.id),
+    description: prod.description,
+    discount: prod.discount || '',
+    image: null // Não edita imagem via PUT
+  };
   showProductForm.value = true;
 }
 
 function handleProductFormSave(data) {
   loadingAddProduct.value = true;
+  let url = 'http://35.196.79.227:8000/products';
+  let method = 'POST';
+  let body;
+  let headers = { 'Authorization': `Bearer ${getToken()}` };
+
+  if (isEditProduct.value && editingProduct.value && editingProduct.value.id) {
+    // Atualiza dados gerais do produto
+    url = `http://35.196.79.227:8000/products/${editingProduct.value.id}`;
+    method = 'PUT';
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify({
+      name: data.name,
+      price: Number(data.price),
+      category_id: Number(data.category_id),
+      description: data.description
+    });
+
+    // Primeiro atualiza dados gerais
+    fetch(url, {
+      method,
+      headers,
+      body,
+    })
+      .then(async response => {
+        if (response.ok) {
+          // Agora atualiza o estoque se mudou
+          if (typeof data.stock !== 'undefined' && data.stock !== editingProduct.value.stock) {
+            fetch(`http://35.196.79.227:8000/products/${editingProduct.value.id}/stock`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+              },
+              body: JSON.stringify({ stock: Number(data.stock) })
+            })
+              .then(res => {
+                if (!res.ok) {
+                  toast.error('Erro ao atualizar estoque!');
+                }
+              })
+              .catch(() => toast.error('Erro ao conectar com o servidor!'));
+          }
+          const updatedProduct = await response.json();
+          toast.success('Produto editado com sucesso!');
+          showProductForm.value = false;
+          editingProduct.value = null;
+          // Atualiza a lista de produtos da categoria correta
+          if (updatedProduct.category_id) {
+            products.value = await getProductsByCategory(updatedProduct.category_id);
+            if (selectedCategory.value && selectedCategory.value.id !== updatedProduct.category_id) {
+              selectedCategory.value = categories.value.find(cat => cat.id === updatedProduct.category_id) || selectedCategory.value;
+            }
+          } else if (selectedCategory.value) {
+            products.value = await getProductsByCategory(selectedCategory.value.id);
+          }
+        } else {
+          let msg = 'Erro ao salvar produto!';
+          if (response.status === 422) {
+            const data = await response.json();
+            msg = data.detail?.[0]?.msg || msg;
+          }
+          toast.error(msg);
+        }
+      })
+      .catch(() => toast.error('Erro ao conectar com o servidor!'))
+      .finally(() => loadingAddProduct.value = false);
+    return;
+  }
+  // POST: envia FormData (para imagem)
   const formData = new FormData();
   formData.append('name', data.name);
   formData.append('price', data.price);
@@ -100,34 +233,76 @@ function handleProductFormSave(data) {
   formData.append('description', data.description);
   if (data.image) formData.append('image', data.image);
   if (data.discount) formData.append('discount', data.discount);
-
-  let url = 'http://35.196.79.227:8000/products';
-  let method = 'POST';
-  if (isEditProduct.value && editingProduct.value && editingProduct.value.id) {
-    url = `http://35.196.79.227:8000/products/${editingProduct.value.id}`;
-    method = 'PUT';
-  }
+  body = formData;
 
   fetch(url, {
     method,
-    headers: { 'Authorization': `Bearer ${getToken()}` },
-    body: formData,
+    headers,
+    body,
   })
     .then(async response => {
       if (response.ok) {
+        const updatedProduct = await response.json();
         toast.success(isEditProduct.value ? 'Produto editado com sucesso!' : 'Produto cadastrado com sucesso!');
         showProductForm.value = false;
         editingProduct.value = null;
-        // Atualiza a lista de produtos da categoria
-        if (selectedCategory.value) {
+        // Atualiza a lista de produtos da categoria correta
+        if (isEditProduct.value && updatedProduct.category_id) {
+          products.value = await getProductsByCategory(updatedProduct.category_id);
+          if (selectedCategory.value && selectedCategory.value.id !== updatedProduct.category_id) {
+            selectedCategory.value = categories.value.find(cat => cat.id === updatedProduct.category_id) || selectedCategory.value;
+          }
+        } else if (selectedCategory.value) {
           products.value = await getProductsByCategory(selectedCategory.value.id);
         }
       } else {
-        toast.error('Erro ao salvar produto!');
+        let msg = 'Erro ao salvar produto!';
+        if (response.status === 422) {
+          const data = await response.json();
+          msg = data.detail?.[0]?.msg || msg;
+        }
+        toast.error(msg);
       }
     })
     .catch(() => toast.error('Erro ao conectar com o servidor!'))
     .finally(() => loadingAddProduct.value = false);
+}
+
+function openDeleteModal(prod) {
+  productToDelete.value = prod;
+  showDeleteModal.value = true;
+}
+
+function closeDeleteModal() {
+  showDeleteModal.value = false;
+  productToDelete.value = null;
+}
+
+async function confirmDeleteProduct() {
+  if (!productToDelete.value) return;
+  try {
+    const res = await fetch(`http://35.196.79.227:8000/products/${productToDelete.value.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    if (res.status === 204) {
+      toast.success('Produto excluído com sucesso!');
+      if (selectedCategory.value) {
+        products.value = await getProductsByCategory(selectedCategory.value.id);
+      }
+    } else {
+      let msg = 'Erro ao excluir produto!';
+      if (res.status === 422) {
+        const data = await res.json();
+        msg = data.detail?.[0]?.msg || msg;
+      }
+      toast.error(msg);
+    }
+  } catch {
+    toast.error('Erro ao conectar com o servidor!');
+  } finally {
+    closeDeleteModal();
+  }
 }
 
 function handleProductFormCancel() {
@@ -173,6 +348,7 @@ async function handleAddCategory(e) {
       <div class="admin-tabs">
         <button class="tab-btn" :class="{active: activeTab==='categories'}" @click="activeTab='categories'">Categorias</button>
         <button class="tab-btn" :class="{active: activeTab==='addCategory'}" @click="activeTab='addCategory'">Adicionar Categoria</button>
+        <button class="tab-btn" :class="{active: activeTab==='allOrders'}" @click="activeTab='allOrders'">Todos os Pedidos</button>
       </div>
       <div v-if="activeTab==='categories'">
         <div class="admin-section">
@@ -224,7 +400,10 @@ async function handleAddCategory(e) {
                   <span>Preço: <strong>R$ {{ prod.price }}</strong></span><br />
                   <span>Estoque: {{ prod.stock }}</span>
                 </div>
-                <button class="btn-outline" @click="handleEditProduct(prod)">Editar</button>
+                <div class="d-flex gap-2 mt-2">
+                  <button class="btn-outline" @click="handleEditProduct(prod)">Editar</button>
+                  <button class="btn-delete" @click="openDeleteModal(prod)">Excluir</button>
+                </div>
               </div>
             </div>
           </div>
@@ -239,6 +418,20 @@ async function handleAddCategory(e) {
           @save="handleProductFormSave"
           @cancel="handleProductFormCancel"
         />
+
+        <!-- Modal de confirmação de exclusão -->
+        <div v-if="showDeleteModal" class="modal-bg" @click.self="closeDeleteModal">
+          <div class="modal-content modal-orange">
+            <h4 class="mb-3" style="color:#FF4D33;">Confirmar Exclusão</h4>
+            <p class="mb-2" style="color:#444;">
+              Tem certeza que deseja excluir o produto <strong>{{ productToDelete?.name }}</strong>?
+            </p>
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn-delete w-100" @click="confirmDeleteProduct">Excluir</button>
+              <button class="btn-cancel w-100" @click="closeDeleteModal">Cancelar</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div v-else-if="activeTab==='addCategory'">
         <div class="admin-section">
@@ -260,6 +453,62 @@ async function handleAddCategory(e) {
               {{ loadingAddCategory ? 'Adicionando...' : 'Adicionar Categoria' }}
             </button>
           </form>
+        </div>
+      </div>
+      <div v-else-if="activeTab==='allOrders'">
+        <h3 class="mb-3" style="color:#FF4D33;">Todos os Pedidos</h3>
+        <div v-if="loadingAllOrders" class="text-center py-4">Carregando pedidos...</div>
+        <div v-else-if="errorAllOrders" class="text-danger text-center">{{ errorAllOrders }}</div>
+        <div v-else>
+          <div v-if="allOrders.length === 0" class="text-center">Nenhum pedido encontrado.</div>
+          <div v-else>
+            <div v-for="order in allOrders" :key="order.id" class="order-card">
+              <div class="order-header">
+                <span><strong>Pedido #{{ order.id }}</strong></span>
+                <span>Status: <strong>{{ order.status }}</strong></span>
+                <span>Data: {{ new Date(order.order_date).toLocaleString() }}</span>
+                <span><strong>Usuário ID:</strong> {{ order.user_id }}</span>
+              </div>
+              <div class="order-address">
+                <template v-if="allOrdersAddressesMap[order.address_id]">
+                  <span>
+                    <strong>Endereço:</strong>
+                    {{ allOrdersAddressesMap[order.address_id].street }},
+                    {{ allOrdersAddressesMap[order.address_id].number }} -
+                    {{ allOrdersAddressesMap[order.address_id].city }} ({{ allOrdersAddressesMap[order.address_id].state }})
+                    - {{ allOrdersAddressesMap[order.address_id].zip }},
+                    {{ allOrdersAddressesMap[order.address_id].country }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span><strong>Endereço ID:</strong> {{ order.address_id }}</span>
+                </template>
+              </div>
+              <div class="order-total" style="margin-bottom:8px;">
+                <strong>Total do Pedido:</strong>
+                R$
+                {{
+                  order.products && order.products.length
+                    ? order.products.reduce((sum, prod) => sum + Number(prod.price || 0), 0).toFixed(2)
+                    : '0.00'
+                }}
+              </div>
+              <div class="order-products">
+                <h5>Produtos:</h5>
+                <ul>
+                  <li v-for="prod in order.products" :key="prod.name + prod.price" class="order-prod-item">
+                    <img v-if="prod.image_path" :src="`http://35.196.79.227:8000${prod.image_path}`" alt="Imagem do produto" class="order-prod-img" />
+                    <div>
+                      <strong>{{ prod.name }}</strong> <br />
+                      <span>Preço: R$ {{ prod.price }}</span> <br />
+                      <span>Estoque: {{ prod.stock }}</span> <br />
+                      <span>{{ prod.description }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="admin-footer">
@@ -441,24 +690,103 @@ async function handleAddCategory(e) {
   background: #ffb347;
   color: #fff;
 }
-.admin-footer {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 18px;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-.form-input {
-  padding: 8px 12px;
+.btn-delete {
+  background: #fff;
+  color: #FF4D33;
+  border: 2px solid #FF4D33;
   border-radius: 8px;
-  border: 1px solid #eee;
+  padding: 8px 18px;
   font-size: 1em;
-  background: #f8fafc;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-delete:hover {
+  background: #FF4D33;
+  color: #fff;
+}
+.btn-cancel {
+  background: #fff;
+  color: #FF4D33;
+  border: 2px solid #FF4D33;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-cancel:hover {
+  background: #FF4D33;
+  color: #fff;
+}
+.modal-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 32px 24px;
+  min-width: 320px;
+  max-width: 420px;
+  box-shadow: 0 2px 16px rgba(255,77,51,0.12);
+}
+.modal-orange {
+  border: 2px solid #FF4D33;
+}
+.order-card {
+  background: #fff7f0;
+  border-radius: 12px;
+  padding: 18px 14px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 8px #ffb34733;
+}
+.order-header {
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 1em;
+  color: #444;
+}
+.order-address {
+  font-size: 0.98em;
+  color: #888;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 18px;
+}
+.order-products h5 {
+  color: #FF4D33;
+  margin-bottom: 6px;
+}
+.order-products ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+.order-prod-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+}
+.order-prod-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
 }
 @media (max-width: 900px) {
   .admin-card {

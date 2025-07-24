@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { logout } from '@/api/auth';
+import { logout, getToken } from '@/api/auth';
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 
@@ -20,6 +20,14 @@ function updateUserRole() {
   userRole.value = localStorage.getItem('user_role');
 }
 
+function handleCartClick() {
+  if (!getToken()) {
+    toast.info('Você precisa estar logado para usar o carrinho!');
+    return;
+  }
+  router.push('/cart');
+}
+
 onMounted(() => {
   window.addEventListener('storage', updateUserRole);
   window.addEventListener('user-auth-changed', updateUserRole);
@@ -32,7 +40,12 @@ onMounted(() => {
       <router-link to="/" class="header-logo">Emporium</router-link>
       <nav class="header-nav">
         <router-link to="/" class="nav-link">Home</router-link>
-        <router-link to="/cart" class="nav-link">Cart</router-link>
+        <div class="header-cart">
+          <button class="cart-btn" @click="handleCartClick">
+            <i class="fa fa-shopping-cart"></i>
+            Carrinho
+          </button>
+        </div>
 
         <router-link v-if="userRole === 'ADMIN'" to="/admin" class="nav-link">Admin</router-link>
         <router-link v-if="userRole" to="/profile" class="nav-link">Perfil</router-link>
@@ -101,6 +114,21 @@ onMounted(() => {
 .btn-logout:hover {
   background: #ffb347;
   color: #fff;
+}
+.cart-btn {
+  background: none;
+  border: none;
+  color: #FF4D33;
+  font-weight: bold;
+  font-size: 1em;
+  cursor: pointer;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cart-btn:hover {
+  color: #ffb347;
 }
 @media (max-width: 700px) {
   .header-content {

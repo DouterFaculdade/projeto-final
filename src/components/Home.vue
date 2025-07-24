@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import ProductCard from './ProductCard.vue'
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+import { getToken } from '@/api/auth';
 
 const router = useRouter()
 const categories = ref([])
@@ -52,38 +53,39 @@ function handleAllProducts() {
 }
 
 function goToProduct(prod) {
-  router.push({ name: 'ProductDetails', params: { id: prod.id } })
+  router.push(`/product/${prod.id}`);
 }
 
 async function handleAddToCart(prod) {
+  if (!getToken()) {
+    toast.info('Você precisa estar logado para usar o carrinho!');
+    return;
+  }
   try {
-    // Verifica se o produto já está no carrinho
     const cart = await getCartItems();
     const existing = cart.items?.find(item => item.product_id === prod.id);
     if (existing) {
-      // Atualiza quantidade
+      // Só permite aumentar até o estoque máximo
+      if (existing.quantity >= prod.stock) {
+        toast.info('Quantidade máxima no carrinho atingida!');
+        return;
+      }
       const newQty = existing.quantity + 1;
       await updateCartItemQuantity(prod.id, newQty);
-      toast.success({
-        render: ({ closeToast }) => (
-          `Quantidade atualizada no carrinho!`
-        ),
-        autoClose: 3000,
-      });
+      toast.success('Quantidade atualizada no carrinho!');
     } else {
-      // Adiciona novo item
+      // Só adiciona se houver estoque
+      if (prod.stock < 1) {
+        toast.info('Produto esgotado!');
+        return;
+      }
       const res = await addItemToCart({
         product_id: prod.id,
         quantity: 1,
         unit_price: prod.price
       });
       if (res.status === 204) {
-        toast.success({
-          render: ({ closeToast }) => (
-            `Produto adicionado ao carrinho!`
-          ),
-          autoClose: 3000,
-        });
+        toast.success('Produto adicionado ao carrinho!');
       } else {
         toast.error('Erro ao adicionar ao carrinho!');
       }
@@ -168,6 +170,8 @@ const filteredProducts = computed(() => {
                 v-for="prod in filteredProducts"
                 :key="prod.id"
                 class="produto-card"
+                @click="goToProduct(prod)"
+                style="cursor:pointer;"
               >
                 <img
                   v-if="prod.image_path"
@@ -181,7 +185,12 @@ const filteredProducts = computed(() => {
                   <span>Preço: <strong>R$ {{ prod.price }}</strong></span><br />
                   <span>Estoque: {{ prod.stock }}</span>
                 </div>
-                <button class="btn-primary" @click="handleAddToCart(prod)">Adicionar ao Carrinho</button>
+                <template v-if="prod.stock > 0">
+                  <button class="btn-primary" @click.stop="handleAddToCart(prod)">Adicionar ao Carrinho</button>
+                </template>
+                <template v-else>
+                  <div class="produto-esgotado">Esgotado</div>
+                </template>
               </div>
             </div>
           </div>
@@ -435,6 +444,18 @@ const filteredProducts = computed(() => {
   color: #FF4D33;
   font-weight: bold;
   font-size: 1.15em;
+}
+.produto-esgotado {
+  background: #ffe3e3;
+  color: #FF4D33;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 10px 0;
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
+  font-size: 1em;
+  letter-spacing: 1px;
 }
 @media (max-width: 900px) {
   .products-main {

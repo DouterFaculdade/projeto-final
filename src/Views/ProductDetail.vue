@@ -8,7 +8,12 @@
         <div class="preco">Preço: <strong>R$ {{ product.price }}</strong></div>
         <div class="estoque">Estoque: {{ product.stock }}</div>
         <div class="categoria" v-if="product.category && product.category.name">Categoria: {{ product.category.name }}</div>
-        <button class="btn-primary" @click="addToCart">Adicionar ao Carrinho</button>
+        <template v-if="product.stock > 0">
+          <button class="btn-primary" @click="addToCart">Adicionar ao Carrinho</button>
+        </template>
+        <template v-else>
+          <div class="produto-esgotado">Esgotado</div>
+        </template>
       </div>
     </div>
     <div v-else class="text-center py-4">Carregando...</div>
@@ -112,6 +117,18 @@ async function addToCart() {
 }
 .btn-primary:hover {
   box-shadow: 0 2px 12px #ffb34744;
+}
+.produto-esgotado {
+  background: #ffe3e3;
+  color: #FF4D33;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 12px 0;
+  width: 100%;
+  text-align: center;
+  margin-top: 18px;
+  font-size: 1.1em;
+  letter-spacing: 1px;
 }
 @media (max-width: 700px) {
   .detail-card {
