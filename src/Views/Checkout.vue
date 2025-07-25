@@ -97,7 +97,7 @@ async function handleFinishOrder() {
     const cart = await getCartItems();
     const items = cart.items || [];
     if (items.length === 0) {
-      toast.error('Carrinho vazio!');
+      // Removido toast de carrinho vazio
       return;
     }
     // Monta o corpo do pedido

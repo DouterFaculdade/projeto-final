@@ -4,7 +4,6 @@ import { getCategoriesByAdmin } from "@/api/categories";
 import { getProductsByAdminUser231, getProductsByCategory } from "@/api/products";
 import { addItemToCart, getCartItems, updateCartItemQuantity } from "@/api/cart";
 import { useRouter } from 'vue-router'
-import ProductCard from './ProductCard.vue'
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 import { getToken } from '@/api/auth';
@@ -67,7 +66,7 @@ async function handleAddToCart(prod) {
     if (existing) {
       // Só permite aumentar até o estoque máximo
       if (existing.quantity >= prod.stock) {
-        toast.info('Quantidade máxima no carrinho atingida!');
+        // Removido toast de quantidade máxima
         return;
       }
       const newQty = existing.quantity + 1;
@@ -76,7 +75,7 @@ async function handleAddToCart(prod) {
     } else {
       // Só adiciona se houver estoque
       if (prod.stock < 1) {
-        toast.info('Produto esgotado!');
+        // Removido toast de produto esgotado
         return;
       }
       const res = await addItemToCart({
@@ -86,9 +85,8 @@ async function handleAddToCart(prod) {
       });
       if (res.status === 204) {
         toast.success('Produto adicionado ao carrinho!');
-      } else {
-        toast.error('Erro ao adicionar ao carrinho!');
       }
+      // Removido toast de erro ao adicionar ao carrinho
     }
   } catch (err) {
     toast.error(err.message || 'Erro ao conectar com o servidor!');
@@ -96,11 +94,17 @@ async function handleAddToCart(prod) {
 }
 
 const filteredProducts = computed(() => {
-  if (!search.value) return products.value
-  return products.value.filter(prod =>
-    prod.name.toLowerCase().includes(search.value.toLowerCase()) ||
-    (prod.description && prod.description.toLowerCase().includes(search.value.toLowerCase()))
-  )
+  let arr = !search.value
+    ? products.value
+    : products.value.filter(prod =>
+        prod.name.toLowerCase().includes(search.value.toLowerCase()) ||
+        (prod.description && prod.description.toLowerCase().includes(search.value.toLowerCase()))
+      );
+  // Produtos com estoque > 0 primeiro, esgotados por último
+  return [
+    ...arr.filter(prod => prod.stock > 0),
+    ...arr.filter(prod => prod.stock <= 0)
+  ];
 })
 </script>
 
@@ -110,10 +114,10 @@ const filteredProducts = computed(() => {
     <section class="hero-section">
       <div class="hero-overlay"></div>
       <div class="hero-content">
-        <h1 class="hero-title">Encontre os Melhores <span class="gradient-text">Produtos</span> Aqui</h1>
-        <p class="hero-desc">Descubra uma curadoria especial dos melhores produtos com qualidade garantida e preços incríveis.</p>
+        <h1 class="hero-title">Encontre as Melhores <span class="gradient-text">Roupas</span> Aqui</h1>
+        <p class="hero-desc">Descubra seu novo estilo de roupa favorita e encontre as melhores opções de roupas.</p>
         <div class="hero-actions">
-          <button class="btn-primary" @click="router.push('/login')">Começar Agora</button>
+          <button class="btn-primary" @click="router.push('/login')">Fazer Login</button>
           <button class="btn-outline" @click="handleAllProducts">Ver Produtos</button>
         </div>
         <div class="hero-stats">
@@ -140,25 +144,30 @@ const filteredProducts = computed(() => {
     <!-- Produtos Section -->
     <section class="products-section">
       <div class="products-header">
-        <h2 class="products-title">Produtos em Destaque</h2>
+      
         <div class="products-search">
           <input v-model="search" type="text" class="search-bar" placeholder="Buscar produtos..." />
         </div>
       </div>
       <div class="products-main">
         <aside class="sidebar">
-          <h3 class="sidebar-title">Categorias</h3>
-          <ul class="sidebar-list">
-            <li :class="{selected: !selectedCategory}" @click="handleAllProducts">Todos</li>
-            <li
+          <h3 class="sidebar-title gradient-text">CATEGORIAS</h3>
+          <div class="sidebar-list">
+            <div
+              class="sidebar-cat"
+              :class="{selected: !selectedCategory}"
+              @click="handleAllProducts"
+            >Todos</div>
+            <div
               v-for="cat in categories"
               :key="cat.id"
+              class="sidebar-cat"
               :class="{selected: selectedCategory && selectedCategory.id === cat.id}"
               @click="handleCategoryClick(cat)"
             >
-              <span>{{ cat.name }}</span>
-            </li>
-          </ul>
+              {{ cat.name }}
+            </div>
+          </div>
         </aside>
         <main class="main-content">
           <div v-if="loading" class="text-center py-4">Carregando...</div>
@@ -180,10 +189,11 @@ const filteredProducts = computed(() => {
                   class="produto-img"
                 />
                 <h3>{{ prod.name }}</h3>
-                <p>{{ prod.description }}</p>
+                
                 <div class="produto-info">
-                  <span>Preço: <strong>R$ {{ prod.price }}</strong></span><br />
-                  <span>Estoque: {{ prod.stock }}</span>
+                  <span class="gradient-text">R$ {{ prod.price }}</span> 
+                  <span> <strong></strong></span><br />
+              
                 </div>
                 <template v-if="prod.stock > 0">
                   <button class="btn-primary" @click.stop="handleAddToCart(prod)">Adicionar ao Carrinho</button>
@@ -309,7 +319,7 @@ const filteredProducts = computed(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  max-width: 1200px;
+  max-width: 1920px;
   margin: 0 auto 18px auto;
   padding: 0 2vw;
 }
@@ -322,6 +332,7 @@ const filteredProducts = computed(() => {
   margin-top: 8px;
 }
 .search-bar {
+ 
   width: 240px;
   max-width: 80vw;
   padding: 8px 16px;
@@ -332,10 +343,12 @@ const filteredProducts = computed(() => {
 }
 .products-main {
   display: flex;
-  max-width: 1200px;
+  max-width: 1920px;
   margin: 0 auto;
   gap: 18px;
   padding: 0 2vw;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 .sidebar {
   width: 160px;
@@ -346,53 +359,140 @@ const filteredProducts = computed(() => {
   min-width: 120px;
   max-height: 420px;
   overflow-y: auto;
+  flex-shrink: 0;
 }
 .sidebar-title {
   font-size: 1.1em;
   font-weight: bold;
-  color: #FF4D33;
   margin-bottom: 10px;
+  /* Removido color fixa, usa gradiente-text */
 }
 .sidebar-list {
-  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 0;
   margin: 0;
 }
-.sidebar-list li {
+.sidebar-cat {
   padding: 7px 4px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 1em;
   margin-bottom: 2px;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+  background: none;
+  color: #444;
+  border: none;
+  outline: none;
+  font-weight: 500;
 }
-.sidebar-list li.selected,
-.sidebar-list li:hover {
+.sidebar-cat.selected,
+.sidebar-cat:hover {
   background: #ffe3e3;
+  color: #FF4D33;
 }
 .main-content {
   flex: 1;
   padding: 0;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .produtos-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 32px;
   width: 100%;
-  justify-items: center;
+  justify-items: stretch;
+  margin: 0;
+
+
 }
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
+  .products-main {
+    max-width: 300px;
+    padding: 0 1vw;
+    gap: 12px;
+  }
   .produtos-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 300fr));
     gap: 18px;
   }
 }
+@media (max-width: 900px) {
+  .products-main {
+    
+    gap: 8px;
+    max-width: 100vw;
+    padding: 0 1vw;
+  }
+  .sidebar {
+    width: 100vw;
+    min-width: 100vw;
+    border-radius: 0;
+    border-bottom: 1px solid #eee;
+    border-right: none;
+    margin-bottom: 8px;
+    max-height: 80px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-list {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    
+  }
+  .sidebar-list li {
+    min-width: 80px;
+    font-size: 0.95em;
+    text-align: center;
+  }
+  .produtos-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 300fr));
+    gap: 12px;
+    width: 100%;
+    
+  }
+  .produto-card {
+    min-width: 160px;
+    max-width: 98vw;
+    padding: 10px 2vw;
+    box-sizing: border-box;
+  }
+  .produto-img {
+    width: 70px;
+    height: 70px;
+  }
+}
 @media (max-width: 600px) {
+  .products-header {
+    padding: 0 1vw;
+  }
+  .products-main {
+    padding: 0 1vw;
+    gap: 4px;
+  }
   .produtos-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
+    width: 100%;
+  }
+  .produto-card {
+    min-width: 98vw;
+    max-width: 98vw;
+    padding: 8px 2vw;
+    box-sizing: border-box;
+  }
+  .produto-img {
+    width: 60px;
+    height: 60px;
   }
 }
 .produto-card {
@@ -404,10 +504,11 @@ const filteredProducts = computed(() => {
   flex-direction: column;
   align-items: center;
   border: 1.5px solid #eee;
-  min-width: 220px;
-  max-width: 260px;
+  min-width: 0;
+  max-width: 100%;
   cursor: pointer;
   transition: box-shadow 0.18s, border 0.18s, transform 0.12s;
+  box-sizing: border-box;
 }
 .produto-card:hover {
   box-shadow: 0 4px 18px #ffb34733;
@@ -456,72 +557,5 @@ const filteredProducts = computed(() => {
   margin-top: 8px;
   font-size: 1em;
   letter-spacing: 1px;
-}
-@media (max-width: 900px) {
-  .products-main {
-    flex-direction: column;
-    gap: 8px;
-  }
-  .sidebar {
-    width: 100vw;
-    min-width: 100vw;
-    border-radius: 0;
-    border-bottom: 1px solid #eee;
-    border-right: none;
-    margin-bottom: 8px;
-    max-height: 80px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-  }
-  .sidebar-list {
-    display: flex;
-    flex-direction: row;
-    gap: 8px;
-  }
-  .sidebar-list li {
-    min-width: 80px;
-    font-size: 0.95em;
-    text-align: center;
-  }
-  .produtos-grid {
-    gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  }
-  .produto-card {
-    min-width: 160px;
-    max-width: 98vw;
-    padding: 10px 2vw;
-  }
-  .produto-img {
-    width: 70px;
-    height: 70px;
-  }
-}
-@media (max-width: 600px) {
-  .hero-title {
-    font-size: 1.2em;
-  }
-  .products-header {
-    padding: 0 1vw;
-  }
-  .products-main {
-    padding: 0 1vw;
-  }
-  .produtos-grid {
-    gap: 8px;
-  }
-  .produto-card {
-    min-width: 98vw;
-    max-width: 98vw;
-    padding: 8px 2vw;
-  }
-  .produto-img {
-    width: 60px;
-    height: 60px;
-  }
 }
 </style>

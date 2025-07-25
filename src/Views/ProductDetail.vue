@@ -7,7 +7,6 @@
         <p class="desc">{{ product.description }}</p>
         <div class="preco">Preço: <strong>R$ {{ product.price }}</strong></div>
         <div class="estoque">Estoque: {{ product.stock }}</div>
-        <div class="categoria" v-if="product.category && product.category.name">Categoria: {{ product.category.name }}</div>
         <template v-if="product.stock > 0">
           <button class="btn-primary" @click="addToCart">Adicionar ao Carrinho</button>
         </template>

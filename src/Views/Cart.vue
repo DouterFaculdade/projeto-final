@@ -10,50 +10,64 @@ const loading = ref(false);
 const error = ref(null);
 const router = useRouter();
 
+// Busca o estoque real do produto
+async function getProductStock(product_id) {
+  const response = await fetch(`http://35.196.79.227:8000/products/${product_id}`, {
+    headers: { accept: "application/json" }
+  });
+  if (response.status === 200) {
+    const data = await response.json();
+    return Number(data.stock);
+  }
+  return 0;
+}
+
+// Carrega carrinho e atualiza o estoque real de cada item
 async function fetchCart() {
   loading.value = true;
   try {
-    cart.value = await getCartItems();
+    const cartData = await getCartItems();
+    // Para cada item, busca o estoque real
+    if (cartData.items && cartData.items.length > 0) {
+      const promises = cartData.items.map(async (item) => {
+        item.real_stock = await getProductStock(item.product_id);
+        return item;
+      });
+      cartData.items = await Promise.all(promises);
+    }
+    cart.value = cartData;
     error.value = null;
-    toast.info('Itens do carrinho carregados!');
   } catch (err) {
     error.value = 'Erro ao buscar itens do carrinho';
-    toast.error('Erro ao buscar itens do carrinho!');
   } finally {
     loading.value = false;
   }
 }
 
 function handleRemoveItem(product_id) {
-  toast.info('Removendo item...');
   removeItemFromCart(product_id)
     .then((ok) => {
       if (ok) {
         toast.success('Item removido do carrinho!');
         fetchCart();
-      } else {
-        toast.error('Erro ao remover item!');
       }
-    })
-    .catch((err) => {
-      toast.error(err?.message || 'Erro ao remover item!');
     });
 }
 
-function handleUpdateQuantity(product_id, quantity) {
-  toast.info('Atualizando quantidade...');
-  updateCartItemQuantity(product_id, Number(quantity))
-    .then((ok) => {
-      if (ok) {
-        toast.success('Quantidade atualizada!');
-        fetchCart();
-      } else {
-        toast.error('Erro ao atualizar quantidade!');
-      }
-    })
-    .catch((err) => {
-      toast.error(err?.message || 'Erro ao atualizar quantidade!');
-    });
+// Atualiza quantidade, sempre respeitando o estoque real
+async function handleUpdateQuantity(product_id, quantity, currentQuantity, realStock) {
+  if (quantity > currentQuantity) {
+    if (currentQuantity >= realStock || quantity > realStock) {
+      toast.info('Quantidade máxima no estoque atingida!');
+      return;
+    }
+  }
+  if (quantity < 1) return;
+  const ok = await updateCartItemQuantity(product_id, Number(quantity));
+  if (ok) {
+    toast.success('Quantidade atualizada!');
+    await fetchCart();
+  }
 }
 
 function handleCheckout() {
@@ -80,14 +94,21 @@ onMounted(() => {
               <div class="cart-info">
                 <strong class="cart-prod-name">{{ item.name }}</strong><br />
                 <span>
-                  Qtd: 
-                  <input
-                    type="number"
-                    min="1"
-                    :value="item.quantity"
-                    class="cart-qty-input"
-                    @change="handleUpdateQuantity(item.product_id, $event.target.value)"
-                  />
+                  Quantidade:
+                  <div class="qty-control">
+                    <button
+                      class="qty-btn"
+                      :disabled="item.quantity <= 1"
+                      @click="handleUpdateQuantity(item.product_id, item.quantity - 1, item.quantity, item.real_stock)"
+                    >-</button>
+                    <span class="qty-value">{{ item.quantity }}</span>
+                    <button
+                      class="qty-btn"
+                      :disabled="item.quantity >= item.real_stock"
+                      @click="handleUpdateQuantity(item.product_id, item.quantity + 1, item.quantity, item.real_stock)"
+                    >+</button>
+                  </div>
+                  <span class="estoque-info">(Estoque: {{ item.real_stock }})</span>
                 </span><br />
                 <span class="cart-prod-price">Preço: R$ {{ item.unit_price }}</span>
               </div>
@@ -177,14 +198,54 @@ onMounted(() => {
   color: #FF4D33;
   font-weight: bold;
 }
-.cart-qty-input {
-  width: 54px;
-  padding: 4px 8px;
-  border-radius: 6px;
+.qty-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #eee;
-  font-size: 1em;
+  border-radius: 24px;
   background: #fff;
-  margin-left: 4px;
+  padding: 2px 8px;
+  min-width: 90px;
+  gap: 8px;
+  margin: 6px 0;
+}
+.qty-btn {
+  background: none;
+  border: none;
+  color: #444;
+  font-size: 1.3em;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty-btn:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  background: #f3f3f3;
+}
+.qty-btn:not(:disabled):hover {
+  background: #ffe3e3;
+}
+.qty-value {
+  font-size: 1.1em;
+  font-weight: bold;
+  width: 32px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.estoque-info {
+  font-size: 0.95em;
+  color: #888;
+  margin-left: 8px;
+  font-style: italic;
 }
 .btn-remove {
   background: linear-gradient(90deg, #FF4D33, #ffb347);

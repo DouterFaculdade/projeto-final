@@ -37,9 +37,11 @@ onMounted(() => {
 <template>
   <header class="main-header">
     <div class="header-content">
-      <router-link to="/" class="header-logo">Emporium</router-link>
+      <router-link to="/" class="header-logo">
+        <img src="/src/assets/logo-henc.png" alt="Logo Hena" class="logo-img" />
+      </router-link>
       <nav class="header-nav">
-        <router-link to="/" class="nav-link">Home</router-link>
+       
         <div class="header-cart">
           <button class="cart-btn" @click="handleCartClick">
             <i class="fa fa-shopping-cart"></i>
@@ -66,14 +68,17 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
+  
+  
 }
 .header-content {
-  max-width: 1200px;
+  max-width: 1920px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 2vw;
+  
 }
 .header-logo {
   font-size: 1.7em;
@@ -81,6 +86,13 @@ onMounted(() => {
   color: #FF4D33;
   text-decoration: none;
   letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+}
+.logo-img {
+  height: 80px;
+  width: auto;
+  display: block;
 }
 .header-nav {
   display: flex;

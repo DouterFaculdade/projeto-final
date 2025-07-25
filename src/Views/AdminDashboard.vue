@@ -42,6 +42,10 @@ const editingProduct = ref(null);
 const showDeleteModal = ref(false);
 const productToDelete = ref(null);
 
+const showEditCategoryForm = ref(false);
+const editCategoryForm = ref({ id: '', name: '', description: '' });
+const editCategoryLoading = ref(false);
+
 onMounted(() => {
   if (userRole.value !== 'ADMIN') {
     toast.error('Acesso restrito!');
@@ -339,6 +343,46 @@ async function handleAddCategory(e) {
     loadingAddCategory.value = false;
   }
 }
+
+function openEditCategory(cat) {
+  editCategoryForm.value = { id: cat.id, name: cat.name, description: cat.description };
+  showEditCategoryForm.value = true;
+}
+
+function closeEditCategoryModal() {
+  showEditCategoryForm.value = false;
+  editCategoryForm.value = { id: '', name: '', description: '' };
+}
+
+async function saveEditCategory() {
+  editCategoryLoading.value = true;
+  try {
+    const res = await fetch(`http://35.196.79.227:8000/categories/${editCategoryForm.value.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'accept': 'application/json'
+      },
+      body: JSON.stringify({
+        name: editCategoryForm.value.name,
+        description: editCategoryForm.value.description
+      })
+    });
+    if (res.ok) {
+      toast.success('Categoria editada com sucesso!');
+      showEditCategoryForm.value = false;
+      // Atualiza lista de categorias
+      await fetchCategories();
+    } else {
+      toast.error('Erro ao editar categoria!');
+    }
+  } catch {
+    toast.error('Erro ao conectar com o servidor!');
+  } finally {
+    editCategoryLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -376,6 +420,10 @@ async function handleAddCategory(e) {
               <h3>{{ cat.name }}</h3>
               <p>{{ cat.description }}</p>
               <span v-if="selectedCategory && selectedCategory.id === cat.id" class="badge-selected">Selecionada</span>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn-outline" @click.stop="openEditCategory(cat)">Editar</button>
+                <!-- ...outros botões... -->
+              </div>
             </div>
           </div>
         </div>
@@ -432,21 +480,34 @@ async function handleAddCategory(e) {
             </div>
           </div>
         </div>
+
+        <!-- Modal de edição de categoria -->
+        <div v-if="showEditCategoryForm" class="modal-bg" @click.self="closeEditCategoryModal">
+          <div class="modal-content modal-orange">
+            <h5 class="mb-3">Editar Categoria</h5>
+            <input v-model="editCategoryForm.name" class="form-control mb-2" placeholder="Nome" />
+            <textarea v-model="editCategoryForm.description" class="form-control mb-2" placeholder="Descrição"></textarea>
+            <div class="d-flex gap-2 mt-2">
+              <button class="btn-orange w-100" :disabled="editCategoryLoading" @click="saveEditCategory">Salvar</button>
+              <button class="btn-cancel w-100" type="button" @click="closeEditCategoryModal">Cancelar</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div v-else-if="activeTab==='addCategory'">
         <div class="admin-section">
           <h4 class="section-title">Adicionar Nova Categoria</h4>
           <form @submit="handleAddCategory" enctype="multipart/form-data" class="admin-form">
             <div class="form-group">
-              <label>Nome</label>
+              <label class="form-label">Nome *</label>
               <input v-model="newCategory.name" type="text" class="form-input" required />
             </div>
             <div class="form-group">
-              <label>Descrição</label>
+              <label class="form-label">Descrição</label>
               <textarea v-model="newCategory.description" class="form-input" rows="2"></textarea>
             </div>
             <div class="form-group">
-              <label>Imagem</label>
+              <label class="form-label">Imagem</label>
               <input type="file" class="form-input" @change="e => newCategory.image = e.target.files[0]" accept="image/*" />
             </div>
             <button class="btn-primary w-100" type="submit" :disabled="loadingAddCategory">
@@ -649,10 +710,11 @@ async function handleAddCategory(e) {
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 8px 18px;
+  padding: 10px 0;
   font-size: 1em;
   font-weight: 600;
   cursor: pointer;
+  margin-top: 8px;
   transition: box-shadow 0.2s;
 }
 .btn-primary:hover {
@@ -787,6 +849,29 @@ async function handleAddCategory(e) {
   height: 60px;
   object-fit: cover;
   border-radius: 8px;
+}
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-label {
+  font-size: 1em;
+  color: #FF4D33;
+  font-weight: 600;
+}
+.form-input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  font-size: 1em;
+  background: #f8fafc;
 }
 @media (max-width: 900px) {
   .admin-card {
