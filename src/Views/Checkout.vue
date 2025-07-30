@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router';
 import { getToken } from '@/api/auth';
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
-import { getCartItems, clearCartCacheItems } from '@/api/cart';
 
 const router = useRouter();
 const address = ref(null);
@@ -87,60 +86,9 @@ async function saveAddress() {
   }
 }
 
-async function handleFinishOrder() {
-  if (!address.value || !paymentMethod.value) {
-    toast.error('Selecione endereço e método de pagamento!');
-    return;
-  }
-  try {
-    // Busca itens do carrinho
-    const cart = await getCartItems();
-    const items = cart.items || [];
-    if (items.length === 0) {
-      // Removido toast de carrinho vazio
-      return;
-    }
-    // Monta o corpo do pedido
-    const orderBody = {
-      address_id: address.value.id,
-      payment_method: paymentMethod.value,
-      total_amount: cart.total_amount,
-      order_date: new Date().toISOString(),
-      items: items.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price
-      }))
-    };
-    const res = await fetch('http://35.196.79.227:8000/orders/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getToken()}`
-      },
-      body: JSON.stringify(orderBody)
-    });
-    if (res.status === 201) {
-      toast.success('Pedido finalizado com sucesso!');
-      clearCartCacheItems();
-      setTimeout(() => router.push('/'), 1500);
-    } else {
-      let msg = 'Erro ao finalizar pedido!';
-      if (res.status === 422) {
-        const data = await res.json();
-        msg = data.detail?.[0]?.msg || msg;
-      }
-      toast.error(msg);
-    }
-  } catch {
-    toast.error('Erro ao conectar com o servidor!');
-  }
-}
-
-function handleCancelEditAddress() {
-  showEditAddressForm.value = false;
-  editingAddress.value = null;
-  toast.info('Edição de endereço cancelada.');
+function handleFinishOrder() {
+  toast.success('Pedido finalizado! (Simulação)');
+  setTimeout(() => router.push('/'), 1500);
 }
 </script>
 
@@ -156,7 +104,7 @@ function handleCancelEditAddress() {
           <div v-else>
             <div class="address-box">
               <span>{{ address.street }}, {{ address.number }} - {{ address.city }} ({{ address.state }})</span>
-              
+              <span class="badge-selected">Usar este endereço</span>
               <button class="btn-outline ms-2" @click="openEditAddress(address)">Editar Endereço</button>
             </div>
             <div v-if="addresses.length > 1" class="mt-2">
@@ -186,7 +134,7 @@ function handleCancelEditAddress() {
             <input v-model="addressForm.country" class="form-control mb-2" placeholder="País" />
             <div class="d-flex gap-2 mt-2">
               <button class="btn-orange w-100" :disabled="addressLoading" @click="saveAddress">Salvar</button>
-              <button class="btn-cancel w-100" type="button" @click="handleCancelEditAddress">Cancelar</button>
+            <button class="btn btn-secondary w-100" type="button" @click="showAddressForm = false">Cancelar</button>
             </div>
           </div>
         </div>
@@ -272,41 +220,6 @@ function handleCancelEditAddress() {
 }
 .btn-primary:hover {
   box-shadow: 0 2px 12px #ffb34744;
-}
-.btn-orange {
-  background: linear-gradient(90deg, #FF4D33, #ffb347);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 1em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-.btn-orange:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-.btn-orange:hover:not(:disabled) {
-  box-shadow: 0 2px 12px #ffb34744;
-  background: #ffb347;
-  color: #fff;
-}
-.btn-cancel {
-  background: #fff;
-  color: #FF4D33;
-  border: 2px solid #FF4D33;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 1em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-.btn-cancel:hover {
-  background: #FF4D33;
-  color: #fff;
 }
 .btn-outline {
   background: #fff;
