@@ -46,6 +46,9 @@ const showEditCategoryForm = ref(false);
 const editCategoryForm = ref({ id: '', name: '', description: '' });
 const editCategoryLoading = ref(false);
 
+const showDeleteCategoryModal = ref(false);
+const categoryToDelete = ref(null);
+
 onMounted(() => {
   if (userRole.value !== 'ADMIN') {
     toast.error('Acesso restrito!');
@@ -287,20 +290,28 @@ async function confirmDeleteProduct() {
   try {
     const res = await fetch(`http://35.196.79.227:8000/products/${productToDelete.value.id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${getToken()}` }
+      headers: {
+        'accept': '*/*',
+        'Authorization': `Bearer ${getToken()}`
+      }
     });
     if (res.status === 204) {
       toast.success('Produto excluído com sucesso!');
       if (selectedCategory.value) {
         products.value = await getProductsByCategory(selectedCategory.value.id);
       }
-    } else {
-      let msg = 'Erro ao excluir produto!';
-      if (res.status === 422) {
-        const data = await res.json();
-        msg = data.detail?.[0]?.msg || msg;
-      }
+    } else if (res.status === 401) {
+      toast.error('Não autorizado. Faça login novamente.');
+    } else if (res.status === 403) {
+      toast.error('Acesso negado.');
+    } else if (res.status === 404) {
+      toast.error('Produto não encontrado.');
+    } else if (res.status === 422) {
+      const data = await res.json();
+      const msg = data.detail?.[0]?.msg || 'Erro de validação.';
       toast.error(msg);
+    } else {
+      toast.error('Erro ao excluir produto!');
     }
   } catch {
     toast.error('Erro ao conectar com o servidor!');
@@ -383,6 +394,80 @@ async function saveEditCategory() {
     editCategoryLoading.value = false;
   }
 }
+
+function openDeleteCategory(cat) {
+  categoryToDelete.value = cat;
+  showDeleteCategoryModal.value = true;
+}
+
+function closeDeleteCategoryModal() {
+  showDeleteCategoryModal.value = false;
+  categoryToDelete.value = null;
+}
+
+async function confirmDeleteCategory() {
+  if (!categoryToDelete.value) return;
+  try {
+    const res = await fetch(`http://35.196.79.227:8000/categories/${categoryToDelete.value.id}`, {
+      method: 'DELETE',
+      headers: {
+        'accept': '*/*',
+        'Authorization': `Bearer ${getToken()}`
+      }
+    });
+    if (res.status === 204) {
+      toast.success('Categoria excluída com sucesso!');
+      await fetchCategories();
+    } else if (res.status === 401) {
+      toast.error('Não autenticado. Faça login novamente.');
+    } else {
+      toast.error('Erro ao excluir categoria!');
+    }
+  } catch {
+    toast.error('Erro ao conectar com o servidor!');
+  } finally {
+    closeDeleteCategoryModal();
+  }
+}
+
+const ORDER_STATUS_FLOW = ['PENDING', 'PROCESSING', 'SHIPPED', 'COMPLETED', 'CANCELED'];
+
+function getNextOrderStatus(current) {
+  const idx = ORDER_STATUS_FLOW.indexOf(current);
+  if (idx === -1) return ORDER_STATUS_FLOW[0];
+  // If already COMPLETED or CANCELED, do not advance
+  if (current === 'COMPLETED' || current === 'CANCELED') return current;
+  return ORDER_STATUS_FLOW[idx + 1] || current;
+}
+
+async function handleUpdateOrderStatus(order) {
+  const nextStatus = getNextOrderStatus(order.status);
+  if (nextStatus === order.status) {
+    toast.info('O pedido já está finalizado.');
+    return;
+  }
+  try {
+    const res = await fetch(`http://35.196.79.227:8000/orders/${order.id}`, {
+      method: 'PUT',
+      headers: {
+        'accept': 'application/json',
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: nextStatus })
+    });
+    if (res.ok) {
+      toast.success(`Status atualizado para ${nextStatus}!`);
+      await fetchAllOrders();
+    } else {
+      const data = await res.json();
+      const msg = data.detail?.[0]?.msg || 'Erro ao atualizar status!';
+      toast.error(msg);
+    }
+  } catch {
+    toast.error('Erro ao conectar com o servidor!');
+  }
+}
 </script>
 
 <template>
@@ -422,7 +507,7 @@ async function saveEditCategory() {
               <span v-if="selectedCategory && selectedCategory.id === cat.id" class="badge-selected">Selecionada</span>
               <div class="d-flex gap-2 mt-2">
                 <button class="btn-outline" @click.stop="openEditCategory(cat)">Editar</button>
-                <!-- ...outros botões... -->
+                <button class="btn-delete" @click.stop="openDeleteCategory(cat)">Excluir</button>
               </div>
             </div>
           </div>
@@ -490,6 +575,20 @@ async function saveEditCategory() {
             <div class="d-flex gap-2 mt-2">
               <button class="btn-orange w-100" :disabled="editCategoryLoading" @click="saveEditCategory">Salvar</button>
               <button class="btn-cancel w-100" type="button" @click="closeEditCategoryModal">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal de exclusão de categoria -->
+        <div v-if="showDeleteCategoryModal" class="modal-bg" @click.self="closeDeleteCategoryModal">
+          <div class="modal-content modal-orange">
+            <h4 class="mb-3" style="color:#FF4D33;">Confirmar Exclusão</h4>
+            <p class="mb-2" style="color:#444;">
+              Tem certeza que deseja excluir a categoria <strong>{{ categoryToDelete?.name }}</strong>?
+            </p>
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn-delete w-100" @click="confirmDeleteCategory">Excluir</button>
+              <button class="btn-cancel w-100" @click="closeDeleteCategoryModal">Cancelar</button>
             </div>
           </div>
         </div>
@@ -568,6 +667,13 @@ async function saveEditCategory() {
                   </li>
                 </ul>
               </div>
+              <button
+                class="btn-primary mt-2"
+                @click="handleUpdateOrderStatus(order)"
+                :disabled="order.status === 'COMPLETED' || order.status === 'CANCELED'"
+              >
+                Avançar Status
+              </button>
             </div>
           </div>
         </div>

@@ -3,10 +3,10 @@
 <template>
  <footer class="main-footer">
     <div class="footer-content">
-      <div class="footer-brand">Emporium &copy; 2025</div>
+      <div class="footer-brand">HeNC &copy; 2025</div>
       <div class="footer-links">
         <a href="mailto:fe.gerei@hotmail.com">Contato</a>
-        <a href="https://github.com/DouterFaculdade/market-codinhos-emporium" target="_blank">GitHub</a>
+        <a href="https://github.com/DouterFaculdade/projeto-final" target="_blank">GitHub</a>
       </div>
       <div class="footer-credit">Desenvolvido por Felipe</div>
     </div>

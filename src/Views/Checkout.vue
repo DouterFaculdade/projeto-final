@@ -170,7 +170,6 @@ function handleCancelEditAddress() {
                   >
                     {{ addr.street }}, {{ addr.number }} - {{ addr.city }} ({{ addr.state }})
                   </button>
-                  <button class="btn-outline ms-2" @click.stop="openEditAddress(addr)">Editar</button>
                 </li>
               </ul>
             </div>

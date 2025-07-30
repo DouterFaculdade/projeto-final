@@ -19,16 +19,8 @@ async function handleLogin(e) {
     if (response.status === 200) {
       toast.success("Login realizado com sucesso!", { autoClose: 2000 });
       window.dispatchEvent(new Event('user-auth-changed'));
-      // Cria carrinho se não existir
-      const cartResult = await createCartIfNotExists(localStorage.getItem('access_token'));
-      // Removido toast que mostra o id do carrinho
-      if (cartResult.status === 'created') {
-        // toast.success("Carrinho criado!", { autoClose: 2000 });
-      } else if (cartResult.status === 'exists') {
-        // toast.info("Carrinho já existe", { autoClose: 2000 });
-      } else {
-        toast.error("Erro ao criar carrinho!", { autoClose: 2000 });
-      }
+      // Sempre tenta garantir o carrinho após login
+      await createCartIfNotExists(localStorage.getItem('access_token'));
       setTimeout(() => {
         router.push('/');
       }, 1000);

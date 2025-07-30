@@ -114,7 +114,7 @@ const filteredProducts = computed(() => {
     <section class="hero-section">
       <div class="hero-overlay"></div>
       <div class="hero-content">
-        <h1 class="hero-title">Encontre as Melhores <span class="gradient-text">Roupas</span> Aqui</h1>
+        <h1 class="hero-title">Encontre as Melhores <span class="gradient-text">Roupas</span> Aqui na <span class="gradient-text">HENC</span> </h1>  
         <p class="hero-desc">Descubra seu novo estilo de roupa favorita e encontre as melhores opções de roupas.</p>
         <div class="hero-actions">
           <button class="btn-primary" @click="router.push('/login')">Fazer Login</button>
@@ -230,8 +230,8 @@ const filteredProducts = computed(() => {
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: url('https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80') center/cover no-repeat;
-  opacity: 0.18;
+  background: url('@/assets/banner.png') center/cover no-repeat;
+  opacity: 0.12;
   z-index: 1;
 }
 .hero-content {
@@ -402,7 +402,7 @@ const filteredProducts = computed(() => {
 }
 .produtos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 270px));
   gap: 32px;
   width: 100%;
   justify-items: stretch;
@@ -412,12 +412,11 @@ const filteredProducts = computed(() => {
 }
 @media (max-width: 1200px) {
   .products-main {
-    max-width: 300px;
     padding: 0 1vw;
     gap: 12px;
   }
   .produtos-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 300fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 18px;
   }
 }

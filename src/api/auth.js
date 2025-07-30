@@ -16,6 +16,24 @@ export async function login({ email, password }) {
       localStorage.setItem('user_email', data.user.email || '');
       localStorage.setItem('user_id', data.user.id || '');
       localStorage.setItem('user_image', data.user.image_path || '');
+
+      // Sempre cria (ou recupera) o carrinho após login
+      try {
+        const cartResponse = await apiFetch("/cart/", {
+          method: "POST",
+          headers: {
+            "accept": "application/json",
+            "Authorization": `Bearer ${data.token}`,
+          },
+          body: "",
+        });
+        if (cartResponse.status === 200) {
+          const cartData = await cartResponse.json();
+          localStorage.setItem('cart_id', cartData.id);
+        }
+      } catch (e) {
+        // Se falhar, não impede o login, mas não salva cart_id
+      }
     }
     // Retorna o objeto data para uso no componente
     return { status: 200, data };
@@ -45,8 +63,7 @@ export function logout() {
 
 // Cria o carrinho do usuário se não existir
 export async function createCartIfNotExists(token) {
-  // Se já existe carrinho, ignora
-  if (localStorage.getItem('cart_id')) return { status: 'exists', cart_id: localStorage.getItem('cart_id') };
+  // Sempre tenta criar/recuperar o carrinho do backend
   try {
     const response = await apiFetch("/cart/", {
       method: "POST",
