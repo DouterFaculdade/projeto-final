@@ -1,21 +1,36 @@
 <script setup>
+// Importações do Vue e dependências
 import { ref, onMounted, computed } from 'vue'
+// Função para buscar categorias do admin
 import { getCategoriesByAdmin } from "@/api/categories";
+// Funções para buscar produtos
 import { getProductsByAdminUser231, getProductsByCategory } from "@/api/products";
+// Funções do carrinho
 import { addItemToCart, getCartItems, updateCartItemQuantity } from "@/api/cart";
+// Router para navegação
 import { useRouter } from 'vue-router'
+// Toast para notificações
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+// Função para pegar token do usuário
 import { getToken } from '@/api/auth';
 
+// Instância do router
 const router = useRouter()
+// Estado das categorias
 const categories = ref([])
+// Estado dos produtos
 const products = ref([])
+// Estado de carregamento
 const loading = ref(false)
+// Estado de erro
 const error = ref(null)
+// Categoria selecionada
 const selectedCategory = ref(null)
+// Valor do campo de busca
 const search = ref('')
 
+// Ao montar o componente, busca categorias e produtos do admin
 onMounted(async () => {
   loading.value = true
   try {
@@ -28,11 +43,12 @@ onMounted(async () => {
   }
 })
 
+// Quando clica em uma categoria, filtra produtos dessa categoria
 async function handleCategoryClick(cat) {
   selectedCategory.value = cat
   loading.value = true
   try {
-    // Filtra produtos da categoria apenas entre os criados pelo admin 231
+    // Busca todos produtos do admin e filtra pela categoria
     const allAdminProducts = await getProductsByAdminUser231()
     products.value = allAdminProducts.filter(prod => prod.category_id === cat.id)
   } catch (err) {
@@ -42,6 +58,7 @@ async function handleCategoryClick(cat) {
   }
 }
 
+// Quando clica em "Todos", mostra todos produtos do admin
 function handleAllProducts() {
   selectedCategory.value = null
   loading.value = true
@@ -51,11 +68,14 @@ function handleAllProducts() {
   })
 }
 
+// Navega para a página de detalhes do produto
 function goToProduct(prod) {
   router.push(`/product/${prod.id}`);
 }
 
+// Adiciona produto ao carrinho
 async function handleAddToCart(prod) {
+  // Se não estiver logado, mostra aviso
   if (!getToken()) {
     toast.info('Você precisa estar logado para usar o carrinho!');
     return;
@@ -66,7 +86,7 @@ async function handleAddToCart(prod) {
     if (existing) {
       // Só permite aumentar até o estoque máximo
       if (existing.quantity >= prod.stock) {
-        // Removido toast de quantidade máxima
+        // Não permite adicionar mais que o estoque
         return;
       }
       const newQty = existing.quantity + 1;
@@ -75,7 +95,7 @@ async function handleAddToCart(prod) {
     } else {
       // Só adiciona se houver estoque
       if (prod.stock < 1) {
-        // Removido toast de produto esgotado
+        toast.error('Estoque insuficiente!');
         return;
       }
       const res = await addItemToCart({
@@ -86,13 +106,14 @@ async function handleAddToCart(prod) {
       if (res.status === 204) {
         toast.success('Produto adicionado ao carrinho!');
       }
-      // Removido toast de erro ao adicionar ao carrinho
+      toast.error('Erro ao adicionar ao carrinho!');
     }
   } catch (err) {
     toast.error(err.message || 'Erro ao conectar com o servidor!');
   }
 }
 
+// Computed para filtrar produtos pela busca e ordenar esgotados por último
 const filteredProducts = computed(() => {
   let arr = !search.value
     ? products.value
@@ -110,16 +131,22 @@ const filteredProducts = computed(() => {
 
 <template>
   <div class="home-bg">
-    <!-- Hero Section -->
+    <!-- Hero Section: Banner principal do site -->
     <section class="hero-section">
       <div class="hero-overlay"></div>
       <div class="hero-content">
-        <h1 class="hero-title">Encontre as Melhores <span class="gradient-text">Roupas</span> Aqui na <span class="gradient-text">HENC</span> </h1>  
+        <!-- Título principal com gradiente -->
+        <h1 class="hero-title">
+          Encontre as Melhores <span class="gradient-text">Roupas</span> Aqui na <span class="gradient-text">HENC</span>
+        </h1>
+        <!-- Descrição do banner -->
         <p class="hero-desc">Descubra seu novo estilo de roupa favorita e encontre as melhores opções de roupas.</p>
+        <!-- Botões de ação -->
         <div class="hero-actions">
           <button class="btn-primary" @click="router.push('/login')">Fazer Login</button>
           <button class="btn-outline" @click="handleAllProducts">Ver Produtos</button>
         </div>
+        <!-- Estatísticas do banner -->
         <div class="hero-stats">
           <div>
             <div class="stat-value">1K+</div>
@@ -141,23 +168,26 @@ const filteredProducts = computed(() => {
       </div>
     </section>
 
-    <!-- Produtos Section -->
+    <!-- Seção de Produtos -->
     <section class="products-section">
       <div class="products-header">
-      
+        <!-- Campo de busca de produtos -->
         <div class="products-search">
           <input v-model="search" type="text" class="search-bar" placeholder="Buscar produtos..." />
         </div>
       </div>
       <div class="products-main">
+        <!-- Sidebar de categorias -->
         <aside class="sidebar">
           <h3 class="sidebar-title gradient-text">CATEGORIAS</h3>
           <div class="sidebar-list">
+            <!-- Botão para mostrar todos os produtos -->
             <div
               class="sidebar-cat"
               :class="{selected: !selectedCategory}"
               @click="handleAllProducts"
             >Todos</div>
+            <!-- Lista de categorias -->
             <div
               v-for="cat in categories"
               :key="cat.id"
@@ -169,11 +199,16 @@ const filteredProducts = computed(() => {
             </div>
           </div>
         </aside>
+        <!-- Conteúdo principal: grid de produtos -->
         <main class="main-content">
+          <!-- Mensagem de carregando -->
           <div v-if="loading" class="text-center py-4">Carregando...</div>
+          <!-- Mensagem de erro -->
           <div v-else-if="error" class="text-center text-danger">{{ error }}</div>
           <div v-else>
+            <!-- Mensagem se não houver produtos -->
             <div v-if="filteredProducts.length === 0" class="text-center">Nenhum produto encontrado.</div>
+            <!-- Grid de produtos -->
             <div v-else class="produtos-grid">
               <div
                 v-for="prod in filteredProducts"
@@ -182,19 +217,21 @@ const filteredProducts = computed(() => {
                 @click="goToProduct(prod)"
                 style="cursor:pointer;"
               >
+                <!-- Imagem do produto -->
                 <img
                   v-if="prod.image_path"
                   :src="`http://35.196.79.227:8000${prod.image_path}`"
                   alt="Imagem do produto"
                   class="produto-img"
                 />
-                <h3>{{ prod.name }}</h3>
-                
+                <!-- Nome do produto (abreviado se necessário) -->
+                <h3 class="produto-nome" :title="prod.name">{{ prod.name }}</h3>
+                <!-- Informações do produto -->
                 <div class="produto-info">
-                  <span class="gradient-text">R$ {{ prod.price }}</span> 
+                  <span class="gradient-text">R$ {{ prod.price }}</span>
                   <span> <strong></strong></span><br />
-              
                 </div>
+                <!-- Botão de adicionar ao carrinho ou aviso de esgotado -->
                 <template v-if="prod.stock > 0">
                   <button class="btn-primary" @click.stop="handleAddToCart(prod)">Adicionar ao Carrinho</button>
                 </template>
@@ -274,6 +311,7 @@ const filteredProducts = computed(() => {
   font-weight: 600;
   cursor: pointer;
   transition: box-shadow 0.2s;
+  align-items: end;
 }
 .btn-primary:hover {
   box-shadow: 0 2px 12px #ffb34744;
@@ -525,11 +563,16 @@ const filteredProducts = computed(() => {
   text-align: center;
   width: 100%;
 }
-.produto-info h3 {
+.produto-nome {
   font-size: 1.1em;
   color: #FF4D33;
   margin-bottom: 4px;
   font-weight: bold;
+  max-width: 95%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 .produto-desc {
   font-size: 0.98em;
